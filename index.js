@@ -1,4 +1,21 @@
 import fetch from 'node-fetch';
+import fs from 'fs';
+
+const path = './quotes.json';
+
+const readQuotesFromFile = () => {
+  if (fs.existsSync(path)) {
+    const existingQuotes = JSON.parse(fs.readFileSync(path, 'utf-8'));
+    return existingQuotes;
+  }
+  return [];
+};
+
+const appendQuotesToFile = (quotes) => {
+  const existingQuotes = readQuotesFromFile();
+  const updatedQuotes = existingQuotes.concat(quotes);
+  fs.writeFileSync(path, JSON.stringify(updatedQuotes, null, 2), 'utf-8');
+};
 
 const fetchQuotesFromPage = async (page, limit) => {
   const response = await fetch(`https://api.quotable.io/quotes?limit=${limit}&page=${page}`);
@@ -8,10 +25,21 @@ const fetchQuotesFromPage = async (page, limit) => {
   return response.json();
 };
 
-const fetchSinglePageQuotes = async () => {
+const fetchAllQuotes = async () => {
+  let currentPage = 1;
+  const quotesPerPage = 100; // Quotable API allows fetching up to 100 quotes per request
+  let totalPages = 1;
+
   try {
-    const data = await fetchQuotesFromPage(1, 10); // Fetch only 10 quotes from the first page
-    console.log('Fetched quotes:', data.results);
+    while (currentPage <= totalPages) {
+      console.log(`Fetching page ${currentPage} of ${totalPages}`);
+      const data = await fetchQuotesFromPage(currentPage, quotesPerPage);
+      appendQuotesToFile(data.results);
+      console.log(`Fetched and saved ${data.results.length} quotes from page ${currentPage}`);
+      totalPages = data.totalPages;
+      currentPage++;
+    }
+    console.log('Quotes fetching completed.');
   } catch (error) {
     console.error('Error fetching quotes:', error);
   }
@@ -19,5 +47,5 @@ const fetchSinglePageQuotes = async () => {
 
 // Main function to initiate the fetching process
 (async () => {
-  await fetchSinglePageQuotes();
+  await fetchAllQuotes();
 })();
